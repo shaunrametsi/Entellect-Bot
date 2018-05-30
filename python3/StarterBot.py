@@ -281,20 +281,29 @@ class StarterBot:
                     elif index == 0:
                         x = row
                         y = index + 1
-        else:
-            
-            if(self.checkEnergy(self.rows - 0)):
-                x = self.rows - 0
-            elif(self.checkEnergy(self.rows - 1)):
-                x = self.rows - 1
-            elif(self.checkEnergy(self.rows - 2)):
-                x = self.rows - 2
-            elif(self.checkEnergy(self.rows - 3)):
-                x = self.rows - 3
 
-            y = self.columns - 1
-            self.writeCommand(2,2,0)
-            return 2,2,0
+                self.writeCommand(x,y,building)
+                return x,y,building
+        elif self.player_info['energy'] >= max(self.buildings_stats['ENERGY']['price']):
+            
+            if(self.checkEnergy(0)):
+                y = 0
+            elif(self.checkEnergy(1)):
+                y =  1
+            elif(self.checkEnergy(2)):
+                y = 2
+            elif(self.checkEnergy(3)):
+                y = 3
+            
+            x = 0 
+            building = 2
+
+            self.writeCommand(x,y,building)
+            return x,y,building
+        else:
+            self.writeDoNothing()
+            return None
+
         
         self.writeCommand(x,y,building)
         return x,y,building
