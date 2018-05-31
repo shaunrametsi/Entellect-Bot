@@ -68,7 +68,6 @@ class StarterBot:
                                  "destroyMultiplier": self.game_state['gameDetails']['buildingsStats']['ENERGY']['destroyMultiplier'],
                                  "constructionScore": self.game_state['gameDetails']['buildingsStats']['ENERGY']['constructionScore']}}
         return None
-
     def getFirstDefensePosition(self,lane):
         '''
         Returns index of first defense building
@@ -76,7 +75,11 @@ class StarterBot:
         for i in range(len(lane)):
             if lane[i] == 0 :
                 return i 
-        
+    def checkIfOccupied(self,row):
+        if (self.full_map[row][0]['buildings'][0]['buildingType'] == 'ENERGY'):
+            return True
+        else:
+            return False
     def loadState(self,state_location):
         '''
         Gets the current Game State json file.
@@ -186,7 +189,6 @@ class StarterBot:
         else:
             return False
 
-
     def checkEnergy(self, lane_number):
         '''
             Check if there is any energy stations on the lane
@@ -196,9 +198,17 @@ class StarterBot:
             return True
         else:
             return False
+
+    def checkMyEnergy(self, lane_number):
+        '''
+            Check if there is any energy stations on the lane (self)
+        '''
+        lane = list(self.player_buildings[lane_number])
+        if (lane.count(3) > 0):
+            return True
+        else:
+            return False
            
-
-
     def checkMyDefense(self, lane_number):
 
         '''
@@ -218,6 +228,17 @@ class StarterBot:
         Returns True if lane contains attack unit.
         '''
         lane = list(self.opponent_buildings[lane_number])
+        if (lane.count(1) > 0):
+            return True
+        else:
+            return False
+
+    def checkMyAttack(self, lane_number):
+        '''
+        Checks a lane.
+        Returns True if lane contains attack unit.
+        '''
+        lane = list(self.player_buildings[lane_number])
         if (lane.count(1) > 0):
             return True
         else:
@@ -249,10 +270,11 @@ class StarterBot:
             0 : Defense Building
             1 : Attack Building
             2 : Energy Building
-        '''
-        lanes = []
+        '''        
         x,y,building = 0,0,0
         #check all lanes for an attack unit
+        lanes = []
+        
         for i in range(self.rows):
             if len(self.getUnOccupied(self.player_buildings[i])) == 0:
                 #cannot place anything in a lane with no available cells.
@@ -260,54 +282,56 @@ class StarterBot:
             elif ( self.checkAttack(i) and (self.player_info['energy'] >= self.buildings_stats['DEFENSE']['price']) and (self.checkMyDefense(i)) == False):
                 #place defense unit if there is an attack building and you can afford a defense building
                 lanes.append(i)
+
         #lanes variable will now contain information about all lanes which have attacking units
         #A count of 0 would mean all lanes are not under attack
         
-        if self.player_info['energy'] >= max(self.buildings_stats['ATTACK']['price'], self.buildings_stats['DEFENSE']['price']):
+
+        if len(lanes) > 0 and self.player_info['energy'] >= max(self.buildings_stats['ATTACK']['price'], self.buildings_stats['DEFENSE']['price']):
             for row in range(0,self.rows):
                 '''plant defense if under attack'''
-                if (self.checkAttack(row),self.checkMyDefense == False) :
-                    x = row
-                    unoccupied = self.getUnOccupied(self.player_buildings[row])
-                    y = unoccupied[0]
-                    building = 2
-                elif(self.checkAttack(row) and self.checkMyDefense == True):
+                if   (self.checkAttack(row)    == True and self.checkMyDefense(row) == False) :
+                    y = row
+                    x = 2
+                    building = 0
+                    self.logAction('defense building')
+                    continue
+                elif (self.checkMyAttack(row)  == False and self.checkMyDefense(row) == True) :
                     '''plant attack behind defense'''
-                    index = self.getFirstDefensePosition(row)
+                    y = row
+                    x = 1
                     building = 1
-                    if index >0 :
-                        x = row
-                        y = index - 1
-                    elif index == 0:
-                        x = row
-                        y = index + 1
+                    self.logAction('attack building')
+                    continue
+                elif (self.checkMyDefense(row) == False) :
+                    y = row
+                    x = 2
+                    building = 0
+                    self.logAction('defense building')
+                    continue
+        elif  self.player_info['energy'] >= self.buildings_stats['ENERGY']['price'] :
+            for row in range(0,self.rows):
+                '''plant energy if not enough energy''' 
+                if (self.checkMyEnergy(row) == False ) :
+                        y = row 
+                        x = 0
+                        building = 2
+                        self.logAction('energy building')
+                        continue
+                elif (self.checkMyEnergy(row) == True and row == 0):
+                        self.logAction('Do Nothing')
+                        self.writeDoNothing()
+                        return None
+                        continue
 
-                self.writeCommand(x,y,building)
-                return x,y,building
-        elif self.player_info['energy'] >= max(self.buildings_stats['ENERGY']['price']):
-            
-            if(self.checkEnergy(0)):
-                y = 0
-            elif(self.checkEnergy(1)):
-                y =  1
-            elif(self.checkEnergy(2)):
-                y = 2
-            elif(self.checkEnergy(3)):
-                y = 3
-            
-            x = 0 
-            building = 2
-
-            self.writeCommand(x,y,building)
-            return x,y,building
         else:
+            self.logAction('Do Nothing')
             self.writeDoNothing()
             return None
 
-        
         self.writeCommand(x,y,building)
         return x,y,building
-    
+
     def writeCommand(self,x,y,building):
         '''
         command in form : x,y,building_type
@@ -317,6 +341,28 @@ class StarterBot:
         outfl.close()
         return None
 
+    def logAction(self,message):
+        '''
+        logs data onto a text file 
+        '''
+        outf2 = open('action_log.txt','a')
+        outf2.write(message + '\n')
+        outf2.close()
+        return None
+
+    def getLanes(self):
+        
+        lanes = []
+
+        for i in range(self.rows):
+            if len(self.getUnOccupied(self.player_buildings[i])) == 0:
+                #cannot place anything in a lane with no available cells.
+                continue
+            elif ( self.checkAttack(i) and (self.player_info['energy'] >= self.buildings_stats['DEFENSE']['price']) and (self.checkMyDefense(i)) == False):
+                #place defense unit if there is an attack building and you can afford a defense building
+                lanes.append(i)
+
+        return lanes
     def writeDoNothing(self):
         '''
         command in form : x,y,building_type
