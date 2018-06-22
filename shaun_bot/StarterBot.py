@@ -286,51 +286,56 @@ class StarterBot:
         #lanes variable will now contain information about all lanes which have attacking units
         #A count of 0 would mean all lanes are not under attack
         
-
+      
         if len(lanes) > 0 and self.player_info['energy'] >= max(self.buildings_stats['ATTACK']['price'], self.buildings_stats['DEFENSE']['price']):
             for row in range(0,self.rows):
                 '''plant defense if under attack'''
-                if   (self.checkAttack(row)    == True and self.checkMyDefense(row) == False) :
+                if   (self.checkAttack(row)    == True and self.checkMyDefense(row) == False) and (self.getUnOccupied(lanes).__contains__(row) == False):
                     y = row
-                    x = 2
+                    x = 3
                     building = 0
-                    self.logAction('defense building')
-                    continue
-                elif (self.checkMyAttack(row)  == False and self.checkMyDefense(row) == True) :
+                elif (self.checkMyAttack(row)  == False and self.checkMyDefense(row) == True)  and (self.getUnOccupied(lanes).__contains__(row) == False):
                     '''plant attack behind defense'''
                     y = row
                     x = 1
                     building = 1
-                    self.logAction('attack building')
-                    continue
-                elif (self.checkMyDefense(row) == False) :
+                elif (self.checkMyDefense(row) == False)  and self.getUnOccupied(self.player_buildings[row]).__contains__(row) == False:
                     y = row
-                    x = 2
+                    x = 4
                     building = 0
-                    self.logAction('defense building')
-                    continue
+        elif self.player_info['energy'] >= max(self.buildings_stats['DEFENSE']['price'],self.buildings_stats['ATTACK']['price'])  :
+            for row in range(0,self.rows):
+                if self.player_info['energy'] >= self.buildings_stats['ATTACK']['price'] and self.getPlayerBuildings().count(1) <  3  and (self.getUnOccupied(lanes).__contains__(row) == False):
+                        if (self.checkMyAttack(row) == False)  :
+                            y = row
+                            x = 2
+                            building = 1
         elif  self.player_info['energy'] >= self.buildings_stats['ENERGY']['price'] :
             for row in range(0,self.rows):
                 '''plant energy if not enough energy''' 
-                if (self.checkMyEnergy(row) == False ) :
+                if (self.checkMyEnergy(row) == False )  and (self.getUnOccupied(lanes).__contains__(row) == False):
                         y = row 
                         x = 0
-                        building = 2
-                        self.logAction('energy building')
-                        continue
-                elif (self.checkMyEnergy(row) == True and row == 0):
-                        self.logAction('Do Nothing')
-                        self.writeDoNothing()
-                        return None
-                        continue
+                        building = 2  
+                elif(self.checkMyEnergy(row) == False )  and (self.getUnOccupied(lanes).__contains__(row) == False) :
+                        y = row 
+                        x = 0
+                        building = 2  
 
-        else:
-            self.logAction('Do Nothing')
+        else :
+            self.logAction('round : ' + str(self.round) + '    '+ str(x)  + ',' + str(y) + 'Do Nothing')
             self.writeDoNothing()
             return None
 
-        self.writeCommand(x,y,building)
-        return x,y,building
+
+        if(x < 7) and (y < self.columns) and (building  < 3):
+            self.writeCommand(x,y,building)
+            self.logAction('round : ' + str(self.round) + '    '+ str(x)  + ',' + str(y) + 'building : ' + str(building)  )
+            return x,y,building
+        else:
+            self.logAction('round : ' + str(self.round) + '    '+ str(x)  + ',' + str(y) + 'Do Nothing')
+            self.writeDoNothing()
+            return None
 
     def writeCommand(self,x,y,building):
         '''
